@@ -10,6 +10,10 @@ go install .
 go install 
 ```
 Default folder is `~/go/bin/`
+Discover install path:
+```
+go list -f '{{.Target}}'
+```
 
 Build:
 `go build`
@@ -17,6 +21,11 @@ Build:
 Adds missing requirements and remove requirements that are not longer used:
 ```
 go mod tidy
+```
+
+Replace requirement with local copy
+```
+go mod edit -replace example/greetings=../greetings
 ```
 
 Remove all downloaded modules:
@@ -28,3 +37,9 @@ Test package
 ```
 go test
 ```
+
+Test package with verbose output
+```
+go test -v
+```
+
