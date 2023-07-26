@@ -48,3 +48,14 @@ Test package with verbose output
 go test -v
 ```
 
+Init workspace
+```
+go work init ./module-name
+```
+
+Additional commands for workspaces
+```
+go work use [-r] [dir] adds a use directive to the go.work file for dir, if it exists, and removes the use directory if the argument directory doesn’t exist. The -r flag examines subdirectories of dir recursively.
+go work edit edits the go.work file similarly to go mod edit
+go work sync syncs dependencies from the workspace’s build list into each of the workspace modules.
+```
