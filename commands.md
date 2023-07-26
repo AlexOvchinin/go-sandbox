@@ -33,6 +33,11 @@ Remove all downloaded modules:
 go clean -modcache
 ```
 
+Add dependency:
+```
+go get golang.org/x/example
+```
+
 Test package
 ```
 go test
