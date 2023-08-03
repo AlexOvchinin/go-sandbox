@@ -48,6 +48,11 @@ Test package with verbose output
 go test -v
 ```
 
+Test package while fuzzing (additional parameters: https://pkg.go.dev/cmd/go#hdr-Testing_flags)
+```
+go test -fuzz=Fuzz
+```
+
 Init workspace
 ```
 go work init ./module-name
