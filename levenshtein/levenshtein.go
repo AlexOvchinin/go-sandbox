@@ -4,14 +4,13 @@ import (
 	"math"
 )
 
-func Distance(a string, b string) int {
-	return distanceDp(a, b)
-	// resultChannel := make(chan int)
-	// distanceRecursive(a, 0, b, 0, resultChannel)
-	// return <-resultChannel
+func DistanceGoroutinges(a string, b string) int {
+	resultChannel := make(chan int)
+	distanceGoroutines(a, 0, b, 0, resultChannel)
+	return <-resultChannel
 }
 
-func distanceRecursive(a string, aIndex int, b string, bIndex int, resultChannel chan int) {
+func distanceGoroutines(a string, aIndex int, b string, bIndex int, resultChannel chan int) {
 	if len(a) == aIndex {
 		resultChannel <- len(b) - bIndex
 		return
@@ -23,20 +22,24 @@ func distanceRecursive(a string, aIndex int, b string, bIndex int, resultChannel
 	}
 
 	if a[aIndex] == b[bIndex] {
-		go distanceRecursive(a, aIndex+1, b, bIndex+1, resultChannel)
+		go distanceGoroutines(a, aIndex+1, b, bIndex+1, resultChannel)
 		return
 	}
 
 	aTailChannel := make(chan int)
-	go distanceRecursive(a, aIndex, b, bIndex+1, aTailChannel)
+	go distanceGoroutines(a, aIndex, b, bIndex+1, aTailChannel)
 
 	bTailChannel := make(chan int)
-	go distanceRecursive(a, aIndex+1, b, bIndex, bTailChannel)
+	go distanceGoroutines(a, aIndex+1, b, bIndex, bTailChannel)
 
 	tailChannel := make(chan int)
-	go distanceRecursive(a, aIndex+1, b, bIndex+1, tailChannel)
+	go distanceGoroutines(a, aIndex+1, b, bIndex+1, tailChannel)
 
 	resultChannel <- 1 + int(math.Min(math.Min(float64(<-aTailChannel), float64(<-bTailChannel)), float64(<-tailChannel)))
+}
+
+func DistanceDp(a string, b string) int {
+	return distanceDp(a, b)
 }
 
 func distanceDp(a string, b string) int {
