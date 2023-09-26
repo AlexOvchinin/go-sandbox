@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
@@ -11,9 +12,9 @@ import (
 )
 
 type Chat struct {
-	ID       int64
-	mentions mapset.Set[string]
-	users    mapset.Set[int64]
+	ID        int64
+	usernames mapset.Set[string]
+	users     map[int64]string
 }
 
 var chats = make(map[int64]*Chat)
@@ -32,52 +33,71 @@ func main() {
 		return
 	}
 
-	b.Handle("/add", handleAdd)
-	b.Handle(tele.OnAddedToGroup, handleEvent)
-	b.Handle(tele.OnAddedToGroup, handleEvent)
-	b.Handle(tele.OnUserJoined, handleEvent)
-	b.Handle(tele.OnUserLeft, handleEvent)
+	b.Handle("/add", handleAddCommand)
+	b.Handle("/everyone", handleEveryoneCommand)
+	b.Handle(tele.OnUserJoined, handleUserJoined)
+	b.Handle(tele.OnUserLeft, handleUserLeft)
 
 	b.Start()
 }
 
-func handleAdd(c tele.Context) error {
-	chatId := c.Chat().ID
-	chat := chats[c.Chat().ID]
+func handleAddCommand(ctx tele.Context) error {
+	chat := chats[ctx.Chat().ID]
 	if chat == nil {
-		chat = &Chat{chatId, mapset.NewSet[string](), mapset.NewSet[int64]()}
-		chats[c.Chat().ID] = chat
+		chat = &Chat{ctx.Chat().ID, mapset.NewSet[string](), make(map[int64]string)}
+		chats[ctx.Chat().ID] = chat
 	}
-	return c.Send(fmt.Sprintf("Hello %v!", chat))
-	// for _, entity := range c.Message().Entities {
-	// 	switch entity.Type {
-	// 	case tele.EntityMention:
-	// 	case tele.EntityTMention:
-	// 	}
-	// 	if entity.Type = tele.EntityMention {
-
-	// 	}
-	// 	if (entity.Type = EnttityType.)
-	// 	fmt.Println(entity)
-	// }
+	for _, entity := range ctx.Message().Entities {
+		switch entity.Type {
+		case tele.EntityMention:
+			chat.usernames.Add(ctx.Message().EntityText(entity))
+		case tele.EntityTMention:
+			fmt.Println(entity.User)
+			chat.users[entity.User.ID] = entity.User.FirstName
+			chat.usernames.Remove(entity.User.Username)
+		}
+	}
+	return ctx.Send("Added")
 }
 
-func handleEveryoneCommand(c tele.Context) error {
+func handleEveryoneCommand(ctx tele.Context) error {
+	chat := chats[ctx.Chat().ID]
+	if chat == nil {
+		return ctx.Send("Noone to mention. Please use /add to add users to mention manually")
+	}
+	var builder strings.Builder
+	usernamesIter := chat.usernames.Iterator()
+	for elem := range usernamesIter.C {
+		fmt.Fprintf(&builder, "%v", elem)
+		fmt.Fprintf(&builder, " ")
+	}
+	for userId, username := range chat.users {
+		fmt.Fprintf(&builder, "[%v](tg://user?id=%v)", username, userId)
+		fmt.Fprintf(&builder, " ")
+	}
+	return ctx.Send(builder.String(), tele.ModeMarkdownV2)
+}
+
+func handleUserJoined(ctx tele.Context) error {
+	chat := chats[ctx.Chat().ID]
+	if chat == nil {
+		chat = &Chat{ctx.Chat().ID, mapset.NewSet[string](), make(map[int64]string)}
+		chats[ctx.Chat().ID] = chat
+	}
+	joinedUser := ctx.Message().UserJoined
+	chat.users[joinedUser.ID] = joinedUser.FirstName
+	chat.usernames.Remove(joinedUser.Username)
 	return nil
 }
 
-func handUserJoined(c tele.Context) error {
+func handleUserLeft(ctx tele.Context) error {
+	chat := chats[ctx.Chat().ID]
+	if chat == nil {
+		chat = &Chat{ctx.Chat().ID, mapset.NewSet[string](), make(map[int64]string)}
+		chats[ctx.Chat().ID] = chat
+	}
+	leftUser := ctx.Message().UserLeft
+	delete(chat.users, leftUser.ID)
+	chat.usernames.Remove(leftUser.Username)
 	return nil
-}
-
-func handleUserLeft(c tele.Context) error {
-	return nil
-}
-
-func handleEvent(c tele.Context) error {
-	log.Println(c)
-	message := fmt.Sprintf("%#v", c)
-
-	log.Println(c.Chat())
-	return c.Send(message)
 }
