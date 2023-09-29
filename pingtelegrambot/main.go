@@ -22,9 +22,8 @@ var chats = make(map[int64]*Chat)
 func main() {
 	token := os.Getenv("PING_BOT_TOKEN")
 	pref := tele.Settings{
-		Token:   token,
-		Poller:  &tele.LongPoller{Timeout: 10 * time.Second},
-		Verbose: true,
+		Token:  token,
+		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
 	}
 
 	b, err := tele.NewBot(pref)
