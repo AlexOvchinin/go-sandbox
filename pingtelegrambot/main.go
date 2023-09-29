@@ -6,10 +6,13 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	tele "gopkg.in/telebot.v3"
 )
+
+var Empty struct{}
 
 type Chat struct {
 	ID        int64
@@ -18,8 +21,9 @@ type Chat struct {
 }
 
 var chats = make(map[int64]*Chat)
+
 var dataPath = os.Getenv("PING_BOT_DATA_PATH")
-var Empty struct{}
+var mu sync.Mutex
 
 func main() {
 	token := os.Getenv("PING_BOT_TOKEN")
@@ -47,9 +51,12 @@ func main() {
 }
 
 func saveChats() {
+	mu.Lock()
+	defer mu.Unlock()
+
 	f, err := os.Create(dataPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	defer f.Close()
