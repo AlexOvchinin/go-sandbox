@@ -44,6 +44,7 @@ func main() {
 	b.Handle("/everyone", handleEveryoneCommand)
 	b.Handle(tele.OnUserJoined, handleUserJoined)
 	b.Handle(tele.OnUserLeft, handleUserLeft)
+	b.Handle(tele.OnMigration, handleMigration)
 
 	b.Start()
 
@@ -105,14 +106,23 @@ func handleAddCommand(ctx tele.Context) error {
 
 func handleEveryoneCommand(ctx tele.Context) error {
 	chat := getChat(ctx.Chat().ID)
+
 	var builder strings.Builder
-	for elem, _ := range chat.Usernames {
-		fmt.Fprintf(&builder, "%v", elem)
-		fmt.Fprintf(&builder, " ")
+
+	senderUsername := ctx.Message().Sender.Username
+	for username, _ := range chat.Usernames {
+		if senderUsername != username {
+			fmt.Fprintf(&builder, "%v", username)
+			fmt.Fprintf(&builder, " ")
+		}
 	}
+
+	senderId := ctx.Message().Sender.ID
 	for userId, username := range chat.Users {
-		fmt.Fprintf(&builder, "[%v](tg://user?id=%v)", username, userId)
-		fmt.Fprintf(&builder, " ")
+		if userId != senderId {
+			fmt.Fprintf(&builder, "[%v](tg://user?id=%v)", username, userId)
+			fmt.Fprintf(&builder, " ")
+		}
 	}
 	message := builder.String()
 	if len(message) == 0 {
@@ -137,6 +147,16 @@ func handleUserLeft(ctx tele.Context) error {
 	delete(chat.Users, leftUser.ID)
 	go saveChats()
 	return nil
+}
+
+func handleMigration(ctx tele.Context) error {
+	migrageFrom := ctx.Message().MigrateFrom
+	migrateTo := ctx.Message().MigrateTo
+	chat := chats[migrageFrom]
+	if chat != nil {
+		chats[migrateTo] = chat
+		delete(chats, migrageFrom)
+	}
 }
 
 func getChat(id int64) *Chat {
