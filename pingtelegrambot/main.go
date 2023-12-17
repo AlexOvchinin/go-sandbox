@@ -109,9 +109,9 @@ func handleEveryoneCommand(ctx tele.Context) error {
 
 	var builder strings.Builder
 
-	senderUsername := ctx.Message().Sender.Username
+	senderMention := "@" + ctx.Message().Sender.Username
 	for username := range chat.Usernames {
-		if senderUsername != username {
+		if senderMention != username {
 			fmt.Fprintf(&builder, "%v", username)
 			fmt.Fprintf(&builder, " ")
 		}
