@@ -157,6 +157,7 @@ func handleMigration(ctx tele.Context) error {
 		chats[migrateTo] = chat
 		delete(chats, migrageFrom)
 	}
+	return nil
 }
 
 func getChat(id int64) *Chat {
