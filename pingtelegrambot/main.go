@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"fm/pingtelegrambot/handlers"
+	"fm/pingtelegrambot/model"
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ var chats = make(map[int64]*Chat)
 var dataPath = os.Getenv("PING_BOT_DATA_PATH")
 var mu sync.Mutex
 
+var storage = model.NewChatStorage(dataPath)
+
 func main() {
 	token := os.Getenv("PING_BOT_TOKEN")
 	pref := tele.Settings{
@@ -38,39 +41,22 @@ func main() {
 		return
 	}
 
+	handlers.Storage = storage
+
 	loadChats()
 
-	b.Handle("/add", handleAddCommand)
-	b.Handle("/everyone", handleEveryoneCommand)
-	b.Handle(tele.OnUserJoined, handleUserJoined)
-	b.Handle(tele.OnUserLeft, handleUserLeft)
-	b.Handle(tele.OnMigration, handleMigration)
+	// bot commands
+	b.Handle("/add", handlers.HandleAddCommand)
+	b.Handle("/everyone", handlers.HandleEveryoneCommand)
+
+	// chat events
+	b.Handle(tele.OnUserJoined, handlers.HandleUserJoined)
+	b.Handle(tele.OnUserLeft, handlers.HandleUserLeft)
+	b.Handle(tele.OnMigration, handlers.HandleMigration)
 
 	b.Start()
 
 	log.Println("Ping Telegram Bot Started")
-}
-
-func saveChats() {
-	mu.Lock()
-	defer mu.Unlock()
-
-	f, err := os.Create(dataPath)
-	if err != nil {
-		log.Println(err)
-	}
-
-	defer f.Close()
-
-	marshaledChats, err := json.Marshal(chats)
-	if err != nil {
-		log.Println(err)
-	}
-
-	_, err = f.WriteString(string(marshaledChats))
-	if err != nil {
-		log.Println(err)
-	}
 }
 
 func loadChats() {
@@ -86,85 +72,25 @@ func loadChats() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Loaded %v chats", len(chats))
-}
+	fmt.Printf("Loaded %v chats\n", len(chats))
 
-func handleAddCommand(ctx tele.Context) error {
-	chat := getChat(ctx.Chat().ID)
-	for _, entity := range ctx.Message().Entities {
-		switch entity.Type {
-		case tele.EntityMention:
-			chat.Usernames[ctx.Message().EntityText(entity)] = Empty
-		case tele.EntityTMention:
-			chat.Users[entity.User.ID] = entity.User.FirstName
-			delete(chat.Usernames, entity.User.Username)
+	for _, chat := range chats {
+		users := []*model.User{}
+		for id, firstName := range chat.Users {
+			users = append(users, &model.User{
+				ID:        id,
+				FirstName: firstName,
+			})
 		}
-	}
-	go saveChats()
-	return ctx.Send("Added")
-}
-
-func handleEveryoneCommand(ctx tele.Context) error {
-	chat := getChat(ctx.Chat().ID)
-
-	var builder strings.Builder
-
-	senderMention := "@" + ctx.Message().Sender.Username
-	for username := range chat.Usernames {
-		if senderMention != username {
-			fmt.Fprintf(&builder, "%v", username)
-			fmt.Fprintf(&builder, " ")
+		for username := range chat.Usernames {
+			if len(username) > 0 {
+				users = append(users, &model.User{
+					Username: username,
+				})
+			}
 		}
+		storage.AddUsersToMention(chat.ID, model.MentionEveryoneName, users)
 	}
 
-	senderId := ctx.Message().Sender.ID
-	for userId, username := range chat.Users {
-		if userId != senderId {
-			fmt.Fprintf(&builder, "[%v](tg://user?id=%v)", username, userId)
-			fmt.Fprintf(&builder, " ")
-		}
-	}
-	message := builder.String()
-	if len(message) == 0 {
-		return ctx.Send("Noone to mention. Please use /add to add users to mention manually")
-	}
-
-	return ctx.Send(builder.String(), tele.ModeMarkdownV2)
-}
-
-func handleUserJoined(ctx tele.Context) error {
-	chat := getChat(ctx.Chat().ID)
-	joinedUser := ctx.Message().UserJoined
-	chat.Users[joinedUser.ID] = joinedUser.FirstName
-	delete(chat.Usernames, joinedUser.Username)
-	go saveChats()
-	return nil
-}
-
-func handleUserLeft(ctx tele.Context) error {
-	chat := getChat(ctx.Chat().ID)
-	leftUser := ctx.Message().UserLeft
-	delete(chat.Users, leftUser.ID)
-	go saveChats()
-	return nil
-}
-
-func handleMigration(ctx tele.Context) error {
-	migrageFrom := ctx.Message().MigrateFrom
-	migrateTo := ctx.Message().MigrateTo
-	chat := chats[migrageFrom]
-	if chat != nil {
-		chats[migrateTo] = chat
-		delete(chats, migrageFrom)
-	}
-	return nil
-}
-
-func getChat(id int64) *Chat {
-	chat := chats[id]
-	if chat == nil {
-		chat = &Chat{id, make(map[string]struct{}), make(map[int64]string)}
-		chats[id] = chat
-	}
-	return chat
+	fmt.Println("Transferred old chats to the new model")
 }
