@@ -164,13 +164,23 @@ func (cs *ChatStorage) ChangeChatId(oldId int64, newId int64) {
 
 func (cs *ChatStorage) switchChats(chats []*Chat) {
 	//add global mutex
-	cs.chats = chats
+	cs.chats = nil
 	cs.chatIndex = make(map[int64]*Chat)
 	cs.mentionIndex = make(map[string]*ChatMention)
+
 	for _, chat := range chats {
-		cs.chatIndex[chat.ID] = chat
-		for _, mention := range chat.Mentions {
-			cs.mentionIndex[getMentionKey(chat.ID, mention.Name)] = mention
-		}
+		cs.addChat(chat)
+	}
+}
+
+func (cs *ChatStorage) addChat(chat *Chat) {
+	if cs.chatIndex[chat.ID] != nil {
+		return
+	}
+
+	cs.chats = append(cs.chats, chat)
+	cs.chatIndex[chat.ID] = chat
+	for _, mention := range chat.Mentions {
+		cs.mentionIndex[getMentionKey(chat.ID, mention.Name)] = mention
 	}
 }
