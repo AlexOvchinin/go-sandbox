@@ -31,12 +31,14 @@ const (
 )
 
 func NewChatStorage(dataPath string) *ChatStorage {
-	return &ChatStorage{
+	result := &ChatStorage{
 		chats:        make([]*Chat, 0),
 		chatIndex:    make(map[int64]*Chat),
 		mentionIndex: make(map[string]*ChatMention),
 		dataPath:     dataPath,
 	}
+	result.load()
+	return result
 }
 
 func (cs *ChatStorage) AddUserToMention(chatId int64, mentionName string, user *User) error {
