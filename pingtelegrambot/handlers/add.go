@@ -31,8 +31,8 @@ func HandleAddCommand(ctx tele.Context) error {
 	addedUsers := Storage.AddUsersToMention(ctx.Chat().ID, model.MentionEveryoneName, users)
 
 	if len(addedUsers) == 0 {
-		return ctx.Send("All users already belong to the group")
+		return ctx.Send("All transferred users already belong to the group")
 	}
 
-	return ctx.Send(fmt.Sprintf("Added %v to group %v", getMentionUsersString(addedUsers), model.MentionEveryoneName))
+	return ctx.Send(fmt.Sprintf("Added %v to group %v", getMentionUsersString(addedUsers), model.MentionEveryoneName), tele.ModeMarkdownV2)
 }

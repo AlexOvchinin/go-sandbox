@@ -55,5 +55,5 @@ func (cs *ChatStorage) load() {
 		log.Fatal(err)
 	}
 
-	cs.chats = storage.Chats
+	cs.switchChats(storage.Chats)
 }

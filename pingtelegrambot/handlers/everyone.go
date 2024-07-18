@@ -21,5 +21,5 @@ func HandleEveryoneCommand(ctx tele.Context) error {
 		return ctx.Send("Noone to mention. Please use /add to add users to mention manually")
 	}
 
-	return ctx.Send(mentionMessage)
+	return ctx.Send(mentionMessage, tele.ModeMarkdownV2)
 }
